@@ -1,8 +1,11 @@
-# Speed of light in meters per second
+# Speed of light in meter per second
 c = 299792458
 
 # Obliquity of the ecliptic in degrees (J2000.0)
 OBLIQUITY_OF_ECLIPTIC = 23.4392811
+
+# Astronomical Unit in meter
+au = 149597870700
 
 '''
 Expansion Rate of the Universe (m/s)		2.2E-18
