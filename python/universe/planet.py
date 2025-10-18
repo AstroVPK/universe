@@ -1,48 +1,17 @@
-from abc import ABC, abstractmethod
 import math
 import pdb
 import requests
 import re
 from datetime import datetime, timedelta
 
-from constants import OBLIQUITY_OF_ECLIPTIC, c, au, day
+from constants import OBLIQUITY_OF_ECLIPTIC, c, day
 from naif_id import naif_id
+from h_ecl_position import hEclPosition
+from celestial_object_base import CelestialObject
 
 id_map = naif_id()
 
 month = {'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6, 'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
-
-class hEclPosition(object):
-    def __init__(self, time, Lat, Lon, dist, format_code="%Y-%m-%d %H:%M"):
-        self.format_code = format_code
-        self.time = datetime.strptime(time, format_code)
-        self.Lat = Lat
-        self.Lon = Lon
-        self.dist = dist*au
-
-    def __repr__(self):
-        return 'hEclPosition(%s, %s, %s, %s)'%(self.time.strftime(self.format_code), self.Lat, self.Lon, self.dist)
-
-
-class CelestialObject(ABC):
-    """An abstract base class for representing a celestial body."""
-
-    def __init__(self, name):
-        """
-        Initializes a CelestialObject.
-
-        Args:
-            name (str): The name of the celestial object.
-        """
-        self.name = name
-
-    def __repr__(self):
-        return f'CelestialObject(name={self.name})'
-
-    
-    def __str__(self):
-        """Returns a string representation of the celestial object."""
-        return f'{self.name}'
 
 
 class Planet(CelestialObject):
