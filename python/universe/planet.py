@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from constants import OBLIQUITY_OF_ECLIPTIC, c, day
 from naif_id import naif_id
-from coords import hEclPosition
+from coords import hEclPosition, Location
 from celestial_object_base import CelestialObject
 from sun import Sun
 
@@ -97,7 +97,8 @@ class Planet(CelestialObject):
         
         self.step_size = step_size
         self._orbit = self._get_orbit()
-
+        self._position = self._get_positions()
+    
     def _get_orbit(self):
         params = {'format': 'text', 'COMMAND': '%d'%(self._command), 'OBJ_DATA': 'NO', 'MAKE_EPHEM': 'YES', 'EPHEM_TYPE': 'OBSERVER', 'CENTER': self.center, 'START_TIME': self._start_time.strftime(self.query_format_code), 'STOP_TIME': self._stop_time.strftime(self.query_format_code), 'STEP_SIZE': self.step_size, 'QUANTITIES': "'18,20'" }
         response = requests.get(self.base_url, params=params)
@@ -118,6 +119,23 @@ class Planet(CelestialObject):
             text_time = words[1].split(':')
             dt = '%s-%s-%s %s:%s'%(text_date[0], str(month[text_date[1]]), text_date[2], text_time[0], text_time[1])
             positions.append(hEclPosition(float(words[3]), float(words[2]), float(words[4]), dt))
+        return positions
+
+    def _get_position(self, pos):
+        R = 6356752 # Polar radius of the Earth in m. Polar because the polar radius is slightly smaller than the equatorial radius
+        dByR = pos.dist/R
+        slat = math.radians(self.sun.loc.lat)
+        slon = math.radians(self.sun.loc.lon)
+        brng = math.radians(pos.hEclLon)
+        lat = math.asin(math.sin(slat)*math.cos(dByR) + math.cos(slat)*math.sin(dByR)*math.cos(brng))
+        lon = slon + math.atan2(math.sin(brng)*math.sin(dByR)*math.cos(slat),(math.cos(dByR)-math.sin(slat)*math.sin(lat)))
+        loc = Location(math.degrees(lat), math.degrees(lon), time=pos.time, format_code=pos.format_code)
+        return loc
+
+    def _get_positions(self):
+        positions = list()
+        for pos in self._orbit:
+            positions.append(self._get_position(pos))
         return positions
 
     def _extract_mean_radius(self, text: str) -> float:
@@ -188,6 +206,10 @@ class Planet(CelestialObject):
     @property
     def orbit(self):
         return self._orbit
+    
+    @property
+    def position(self):
+        return self._position
     
     @property
     def diameter_seconds(self):

@@ -9,7 +9,10 @@ class Location(object):
         self.lon = lon
         self.time = time
         if time is not None:
-            self.time = datetime.strptime(time, format_code)
+            if isinstance(time, datetime):
+                self.time = time
+            else:
+                self.time = datetime.strptime(time, format_code)
 
     def __repr__(self):
         if self.time is None:
