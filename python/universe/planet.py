@@ -31,44 +31,24 @@ class Planet(CelestialObject):
         r"Sidereal orbit period\s*=\s*(\d+\.?\d*)\s*(d)"
     ]
 
-    # A list of regexes to capture the mean radius from various formats.
-    # Each regex should have one capturing group for the numerical value.
-    mean_radius_regexes = [
-        r"Vol\. Mean Radius \(km\)\s*=\s*(\d+\.?\d*)\+-",
-        r"Vol\. mean radius \(km\)\s*=\s*(\d+\.?\d*)\+-"
-    ]
-
-    def __init__(self, name, format='text', obj_data=True, make_ephem=True, emphen_type='OBSERVER', center='500@0', sun=Sun(), start_time=None, stop_time=None, format_code="%Y-%m-%d %H:%M:%S", step_size='1d'):
+    def __init__(self, name, scaled_c=29.0576, format='text', obj_data=True, make_ephem=True, ephem_type='OBSERVER', center='500@0', sun=Sun(), start_time=None, stop_time=None, format_code="%Y-%m-%d %H:%M:%S", step_size='1d'):
         """
         Initializes a Planet.
 
         Args:
             name (str): The name of the planet.
         """
-        super().__init__(name)
-        self.base_url = 'https://ssd.jpl.nasa.gov/api/horizons.api'
-        if format not in ['text', 'json']:
-            raise ValueError('format must be either "text" or "json"')
-        else:
-            self.format = format
-        try:
-            self._command = id_map[name]
-        except KeyError:
-            raise ValueError('Object: %s not found in NAIF Id list'%(name))
-        if obj_data:
-            self.obj_data = 'YES'
-        else:
-            self.obj_data = 'NO'
+        super().__init__(name, scaled_c=scaled_c, format=format, obj_data=obj_data)
         if make_ephem:
             self.make_ephem = 'YES'
         else:
             self.make_ephem = 'NO'
-        if emphen_type not in ['OBSERVER', 'VECTORS', 'ELEMENTS', 'SPK', 'APPROACH']:
+        if ephem_type not in ['OBSERVER', 'VECTORS', 'ELEMENTS', 'SPK', 'APPROACH']:
             raise ValueError('emphen_type must be either "OBSERVER", "VECTORS", "ELEMENTS", "SPK", or "APPROACH"')
         else:
-            self.emphen_type = emphen_type
+            self.ephem_type = ephem_type
         if center != '500@0':
-            raise ValueError('center must be either "500@0"')
+            raise ValueError('center must be "500@0"')
         else:
             self.center = center
         self._sun = sun
@@ -81,10 +61,8 @@ class Planet(CelestialObject):
         else:
             self._start_time = datetime.strptime(start_time, format_code)
 
-        params = {'format': 'text', 'COMMAND': '%d'%(self._command), 'OBJ_DATA': 'YES', 'MAKE_EPHEM': 'NO'}
-        response = requests.get(self.base_url, params=params)
-        self._sidereal_period_in_days = self._extract_sidereal_orb_period(response.text)
-        self._diameter = 2000 * self._extract_mean_radius(response.text)
+        self._sidereal_period_in_days = self._extract_sidereal_orb_period(self.response.text)
+        self._diam = 2000*self._extract_mean_radius(self.response.text)
 
         if stop_time is None:
             try:
@@ -121,47 +99,19 @@ class Planet(CelestialObject):
             positions.append(hEclPosition(float(words[3]), float(words[2]), float(words[4]), dt))
         return positions
 
-    def _get_position(self, pos):
+    def _get_positions(self):
         R = 6356752 # Polar radius of the Earth in m. Polar because the polar radius is slightly smaller than the equatorial radius
-        dByR = pos.dist/R
         slat = math.radians(self.sun.loc.lat)
         slon = math.radians(self.sun.loc.lon)
-        brng = math.radians(pos.hEclLon)
-        lat = math.asin(math.sin(slat)*math.cos(dByR) + math.cos(slat)*math.sin(dByR)*math.cos(brng))
-        lon = slon + math.atan2(math.sin(brng)*math.sin(dByR)*math.cos(slat),(math.cos(dByR)-math.sin(slat)*math.sin(lat)))
-        loc = Location(math.degrees(lat), math.degrees(lon), time=pos.time, format_code=pos.format_code)
-        return loc
-
-    def _get_positions(self):
         positions = list()
         for pos in self._orbit:
-            positions.append(self._get_position(pos))
+            dByR = (pos.dist_seconds*self.scaled_c)/R
+            brng = math.radians(pos.hEclLon)
+            lat = math.asin(math.sin(slat)*math.cos(dByR) + math.cos(slat)*math.sin(dByR)*math.cos(brng))
+            lon = slon + math.atan2(math.sin(brng)*math.sin(dByR)*math.cos(slat),(math.cos(dByR)-math.sin(slat)*math.sin(lat)))
+            loc = Location(math.degrees(lat), math.degrees(lon), time=pos.time, format_code=pos.format_code)
+            positions.append(loc)
         return positions
-
-    def _extract_mean_radius(self, text: str) -> float:
-        """
-        Extracts the 'Vol. Mean Radius' value measured in kilometers ('km') from
-        the provided NASA/JPL Horizons API text and returns it as a float.
-
-        Args:
-            text: The input text containing the geophysical properties data.
-
-        Returns:
-            The mean radius in kilometers as a float, or None if not found.
-        """
-        if not self.mean_radius_regexes:
-            return None
-
-        for pattern in self.mean_radius_regexes:
-            match = re.search(pattern, text)
-            if match:
-                try:
-                    # The number is always in the first capturing group.
-                    return float(match.group(1))
-                except (ValueError, IndexError):
-                    # Continue to the next pattern if conversion fails or groups are not found
-                    continue
-        return None
 
     def _extract_sidereal_orb_period(self, text: str) -> float | None:
         """
@@ -193,12 +143,8 @@ class Planet(CelestialObject):
 
     def __str__(self):
         """Returns a string representation of the Planet."""
-        return '%s(%s; diameter: %f m == %f s; sidereal period: %f d == %f s)'%(self.name, self.sun, self.diameter, self.diameter_seconds, self.sidereal_period/day, self.sidereal_period)
+        return '%s(%s; diameter: %f m == %f s; sidereal period: %f d == %f s)'%(self.name, self.sun, self.diam, self.diam_seconds, self.sidereal_period/day, self.sidereal_period)
 
-    @property
-    def diameter(self):
-        return self._diameter
-    
     @property
     def sidereal_period(self):
         return self._sidereal_period_in_days*day
@@ -210,15 +156,16 @@ class Planet(CelestialObject):
     @property
     def position(self):
         return self._position
-    
-    @property
-    def diameter_seconds(self):
-        """Returns the diameter of the object in light-seconds."""
-        return self.diameter/c
 
     @property
     def sun(self):
         return self._sun
+
+    @CelestialObject.scaled_c.setter
+    def scaled_c(self, value):
+        self._scaled_c = value
+        self._position = self._get_positions()
+
 
 if __name__ == '__main__':
 

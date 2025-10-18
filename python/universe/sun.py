@@ -1,7 +1,8 @@
 from coords import Location
+from celestial_object_base import CelestialObject
 
 
-class Sun:
+class Sun(CelestialObject):
     _instance = None  # Class-level variable to hold the single instance
 
     def __new__(cls, *args, **kwargs):
@@ -10,11 +11,12 @@ class Sun:
             cls._instance = super().__new__(cls)
         return cls._instance  # Always return the single instance
 
-    def __init__(self, loc=Location(lat=37.230673, lon=-121.819650)):
+    def __init__(self, loc=Location(lat=37.230673, lon=-121.819650), scaled_c=29.0576, format='text', obj_data=True):
         # __init__ will be called every time you try to create an instance,
         # but the instance itself is only created once by __new__.
         # To avoid re-initializing if it's already set, you can add a check.
         if not hasattr(self, '_initialized'):
+            super().__init__('SUN', scaled_c=scaled_c, format=format, obj_data=obj_data)
             self._loc = loc
             self._initialized = True
 
