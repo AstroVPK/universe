@@ -7,6 +7,9 @@ OBLIQUITY_OF_ECLIPTIC = 23.4392811
 # Astronomical Unit in meter
 au = 149597870700
 
+# Length of mean sidereal day in seconds
+day = 86164.0905398
+
 '''
 Expansion Rate of the Universe (m/s)		2.2E-18
 Gypsum Crystals' Growth Rate (m/s)		1.4E-14

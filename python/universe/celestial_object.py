@@ -3,7 +3,7 @@ import math
 import pdb
 
 from query import JPLQuery
-from constants import OBLIQUITY_OF_ECLIPTIC, c, au
+from constants import OBLIQUITY_OF_ECLIPTIC, c, au, day
 from naif_id import naif_id
 
 
@@ -36,11 +36,11 @@ class Planet(CelestialObject):
     # 1. The numerical value (float or int).
     # 2. The unit (optional character).
     orbital_period_regexes = [
-        r"Sidereal orb\. per\.\s*=\s*(\d+\.?\d*)\s*([a-zA-Z]?)",
-        r"Sidereal orb\. per\.,\s*(?:[a-zA-Z])\s*=\s*(\d+\.?\d*)",
-        r"Sidereal orb period\s*=\s*(\d+\.?\d*)\s*([a-zA-Z]?)",
-        r"Mean sidereal orb per\s*=\s*(\d+\.?\d*)\s*([a-zA-Z]?)",
-        r"Sidereal orbit period\s*=\s*(\d+\.?\d*)\s*([a-zA-Z]?)"
+        r"Sidereal orb\. per\.\s*=\s*(\d+\.?\d*)\s*(d)",
+        r"Sidereal orb\. per\.,\s*(?:d)\s*=\s*(\d+\.?\d*)",
+        r"Sidereal orb period\s*=\s*(\d+\.?\d*)\s*(d)",
+        r"Mean sidereal orb per\s*=\s*(\d+\.?\d*)\s*(d)",
+        r"Sidereal orbit period\s*=\s*(\d+\.?\d*)\s*(d)"
     ]
 
     # A list of regexes to capture the mean radius from various formats.
@@ -64,40 +64,40 @@ class Planet(CelestialObject):
         else:
             query = JPLQuery(self.name, orbital_period_regexes=self.orbital_period_regexes, mean_radius_regexes=self.mean_radius_regexes)
             self._positions = query.orbit()
-            self.diameter = query.diameter
+            self._diameter = query.diameter
+            self._sidereal_period = query.sidereal_period
 
     def __repr__(self):
-        return 'Planet(name=%s, diameter=%d)'%(self.name, self.diameter)
+        return 'Planet(name=%s)'%(self.name)
 
     def __str__(self):
         """Returns a string representation of the Planet."""
-        return '%s(diameter: %d m == %d s)'%(self.name, self.diameter, self.diameter_in_seconds)
+        return '%s(diameter: %f m == %f s; sidereal period: %f d == %f s)'%(self.name, self.diameter, self.diameter_seconds, self.sidereal_period/day, self.sidereal_period)
+
+    @property
+    def diameter(self):
+        return self._diameter
+    
+    @property
+    def sidereal_period(self):
+        return self._sidereal_period
 
     @property
     def positions(self):
         return self._positions
     
     @property
-    def diameter_in_seconds(self):
+    def diameter_seconds(self):
         """Returns the diameter of the object in light-seconds."""
-        return self.diameter / c
-
-    @diameter_in_seconds.setter
-    def diameter_in_seconds(self, seconds):
-        """Sets the diameter from a value in light-seconds."""
-        self.diameter = seconds * c
+        return self.diameter/c
 
 
 if __name__ == '__main__':
 
-    mercury = Planet(name="Mercury")
-    venus = Planet(name="Venus")
-    earth = Planet(name="Earth")
-    mars = Planet(name="Mars")
-    jupiter = Planet(name="Jupiter")
-    saturn = Planet(name="Saturn")
-    uranus = Planet(name="Uranus")
-    neptune = Planet(name="Neptune")
+    planets = {'mercury': Planet(name="Mercury"), 'venus': Planet(name="Venus"), 'earth': Planet(name="Earth"), 'mars': Planet(name="Mars"), 'jupiter': Planet(name="Jupiter"), 'saturn': Planet(name="Saturn"), 'uranus': Planet(name="Uranus"), 'neptune': Planet(name="Neptune")}
+
+    for planet, planet_object in planets.items():
+        print(planet_object)
 
     pdb.set_trace()
     

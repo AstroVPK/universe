@@ -170,6 +170,10 @@ class JPLQuery(object):
         return self._sidereal_period_in_days
 
     @property
+    def sidereal_period(self):
+        return self._sidereal_period_in_days*constants.day
+
+    @property
     def start_time(self):
         return self._start_time.strftime(self.format_code)
 
