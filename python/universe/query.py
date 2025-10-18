@@ -179,8 +179,8 @@ class JPLQuery(object):
 
     @start_time.setter
     def start_time(self, value):
-        self._start_time = datetime.strptime(value, format_code)
-        self._stop_time = self._start_time + timedelta(days=self._sidereal_period_in_days)
+        self._start_time = datetime.strptime(value, self.format_code)
+        self._stop_time = self._start_time + timedelta(days=self.sidereal_period_in_days)
 
     @property
     def stop_time(self):
