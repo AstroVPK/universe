@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from constants import OBLIQUITY_OF_ECLIPTIC, c, day
 from naif_id import naif_id
-from h_ecl_position import hEclPosition
+from coords import hEclPosition
 from celestial_object_base import CelestialObject
 
 id_map = naif_id()
@@ -96,9 +96,9 @@ class Planet(CelestialObject):
                 self._stop_time = datetime.strptime(stop_time, format_code)
             
             self.step_size = step_size
-            self._positions = self.orbit()
+            self._orbit = self._get_orbit()
 
-    def orbit(self):
+    def _get_orbit(self):
         params = {'format': 'text', 'COMMAND': '%d'%(self._command), 'OBJ_DATA': 'NO', 'MAKE_EPHEM': 'YES', 'EPHEM_TYPE': 'OBSERVER', 'CENTER': self.center, 'START_TIME': self._start_time.strftime(self.query_format_code), 'STOP_TIME': self._stop_time.strftime(self.query_format_code), 'STEP_SIZE': self.step_size, 'QUANTITIES': "'18,20'" }
         response = requests.get(self.base_url, params=params)
         lines = response.text.split('\n')
@@ -117,7 +117,7 @@ class Planet(CelestialObject):
             text_date = words[0].split('-')
             text_time = words[1].split(':')
             dt = '%s-%s-%s %s:%s'%(text_date[0], str(month[text_date[1]]), text_date[2], text_time[0], text_time[1])
-            positions.append(hEclPosition(dt, float(words[3]), float(words[2]), float(words[4])))
+            positions.append(hEclPosition(float(words[3]), float(words[2]), float(words[4]), dt))
         return positions
 
     def _extract_mean_radius(self, text: str) -> float:
@@ -186,8 +186,8 @@ class Planet(CelestialObject):
         return self._sidereal_period_in_days*day
 
     @property
-    def positions(self):
-        return self._positions
+    def orbit(self):
+        return self._orbit
     
     @property
     def diameter_seconds(self):
