@@ -8,6 +8,8 @@ from constants import OBLIQUITY_OF_ECLIPTIC, c, day
 from naif_id import naif_id
 from coords import hEclPosition
 from celestial_object_base import CelestialObject
+from sun import Sun
+
 
 id_map = naif_id()
 
@@ -36,7 +38,7 @@ class Planet(CelestialObject):
         r"Vol\. mean radius \(km\)\s*=\s*(\d+\.?\d*)\+-"
     ]
 
-    def __init__(self, name, positions=None, format='json', obj_data=True, make_ephem=True, emphen_type='OBSERVER', center='500@0', start_time=None, stop_time=None, format_code="%Y-%m-%d %H:%M:%S", step_size='1d'):
+    def __init__(self, name, format='text', obj_data=True, make_ephem=True, emphen_type='OBSERVER', center='500@0', sun=Sun(), start_time=None, stop_time=None, format_code="%Y-%m-%d %H:%M:%S", step_size='1d'):
         """
         Initializes a Planet.
 
@@ -69,34 +71,32 @@ class Planet(CelestialObject):
             raise ValueError('center must be either "500@0"')
         else:
             self.center = center
+        self._sun = sun
         
         self.format_code = format_code
         self.query_format_code = '%Y-%m-%d'
 
-        if positions is not None:
-            self._positions = positions
+        if start_time is None:
+            self._start_time = datetime.today()
         else:
-            if start_time is None:
-                self._start_time = datetime.today()
-            else:
-                self._start_time = datetime.strptime(start_time, format_code)
+            self._start_time = datetime.strptime(start_time, format_code)
 
-            params = {'format': 'text', 'COMMAND': '%d'%(self._command), 'OBJ_DATA': 'YES', 'MAKE_EPHEM': 'NO'}
-            response = requests.get(self.base_url, params=params)
-            self._sidereal_period_in_days = self._extract_sidereal_orb_period(response.text)
-            self._diameter = 2000 * self._extract_mean_radius(response.text)
+        params = {'format': 'text', 'COMMAND': '%d'%(self._command), 'OBJ_DATA': 'YES', 'MAKE_EPHEM': 'NO'}
+        response = requests.get(self.base_url, params=params)
+        self._sidereal_period_in_days = self._extract_sidereal_orb_period(response.text)
+        self._diameter = 2000 * self._extract_mean_radius(response.text)
 
-            if stop_time is None:
-                try:
-                    td = timedelta(days=self._sidereal_period_in_days)
-                except TypeError:
-                    pdb.set_trace()
-                self._stop_time = self._start_time + td
-            else:
-                self._stop_time = datetime.strptime(stop_time, format_code)
-            
-            self.step_size = step_size
-            self._orbit = self._get_orbit()
+        if stop_time is None:
+            try:
+                td = timedelta(days=self._sidereal_period_in_days)
+            except TypeError:
+                pdb.set_trace()
+            self._stop_time = self._start_time + td
+        else:
+            self._stop_time = datetime.strptime(stop_time, format_code)
+        
+        self.step_size = step_size
+        self._orbit = self._get_orbit()
 
     def _get_orbit(self):
         params = {'format': 'text', 'COMMAND': '%d'%(self._command), 'OBJ_DATA': 'NO', 'MAKE_EPHEM': 'YES', 'EPHEM_TYPE': 'OBSERVER', 'CENTER': self.center, 'START_TIME': self._start_time.strftime(self.query_format_code), 'STOP_TIME': self._stop_time.strftime(self.query_format_code), 'STEP_SIZE': self.step_size, 'QUANTITIES': "'18,20'" }
@@ -175,7 +175,7 @@ class Planet(CelestialObject):
 
     def __str__(self):
         """Returns a string representation of the Planet."""
-        return '%s(diameter: %f m == %f s; sidereal period: %f d == %f s)'%(self.name, self.diameter, self.diameter_seconds, self.sidereal_period/day, self.sidereal_period)
+        return '%s(%s; diameter: %f m == %f s; sidereal period: %f d == %f s)'%(self.name, self.sun, self.diameter, self.diameter_seconds, self.sidereal_period/day, self.sidereal_period)
 
     @property
     def diameter(self):
@@ -194,6 +194,9 @@ class Planet(CelestialObject):
         """Returns the diameter of the object in light-seconds."""
         return self.diameter/c
 
+    @property
+    def sun(self):
+        return self._sun
 
 if __name__ == '__main__':
 
